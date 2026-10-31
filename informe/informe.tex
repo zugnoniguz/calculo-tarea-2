@@ -1,0 +1,582 @@
+% ============================================================================
+% Informe académico — Cálculo Aplicado
+% Simulación numérica de sistemas dinámicos aplicada a ciberseguridad
+%
+% Estructura según la Guía de Escritura de Informes Académicos:
+%   Resumen, Introducción, Marco teórico, Metodología, Resultados,
+%   Discusión, Conclusiones, Bibliografía.
+%
+% Las secciones de Resultados, la Discusión (de datos) y las Conclusiones
+% quedan vacías a propósito: se completan con las simulaciones.
+%
+% Archivos ya generados por simulaciones.py (disponibles para descomentar).
+% Cada figura existe en dos formatos: .svg (principal) y .pdf (para LaTeX;
+% pdflatex no incluye SVG directamente, por eso se mantiene el PDF):
+%   ../figuras/caso1_lineal.svg|.pdf        Figura caso 1 (crecimiento lineal)
+%   ../figuras/caso2_exponencial.svg|.pdf   Figura caso 2 (decrecimiento exponencial)
+%   ../figuras/error_vs_t.svg|.pdf          Error absoluto vs. tiempo
+%   ../figuras/euler_vs_mejorado.svg|.pdf   Euler vs. Euler mejorado (h=1)
+%   ../figuras/orgs_abc.svg|.pdf            Organizaciones A, B y C (h=1)
+%   ../figuras/org_b_paso.svg|.pdf          Efecto del paso, organización B
+%   ../figuras/discreto_hk.svg|.pdf         Modelo discreto con distintos hk
+%   ../figuras/lambda_modelo.svg|.pdf       Modelo con λ (nuevas vulnerabilidades)
+%   ../tablas/error.tex                     Tabla de error vs. h
+%   ../tablas/mejorado.tex                  Tabla Euler vs. Euler mejorado
+%   ../tablas/orgs.tex                      Tabla organizaciones (h=1)
+%   ../tablas/orgs_h.tex                    Error máximo de cada organización vs. h
+% ============================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage[
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue,
+  citecolor=blue
+]{hyperref}
+\usepackage[left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm]{geometry}
+
+\graphicspath{{../figuras/}}
+
+\title{\textbf{Simulación numérica de sistemas dinámicos\\aplicada a ciberseguridad}\\
+\large Ecuaciones en diferencias, ecuaciones diferenciales y métodos numéricos}
+\author{[Nombre y apellido]\\
+\small Cálculo Aplicado — Universidad Católica del Uruguay}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ---------------------------------------------------------------------------
+\section*{Resumen}
+% ---------------------------------------------------------------------------
+% Contenido: objetivo, metodología y resultados principales.
+% La conclusión principal se omitirá hasta completar la Sección de Conclusiones.
+
+Este trabajo estudia la simulación numérica de sistemas dinámicos aplicada a
+la gestión de vulnerabilidades en ciberseguridad. El objetivo es aproximar la
+evolución de la cantidad de equipos vulnerables de una organización mediante
+el método de Euler y su variante mejorada (Heun), analizando el efecto del
+tamaño de paso $h$ sobre la precisión y el costo computacional.
+
+Se implementaron ambos métodos en Python y se verificaron sobre dos casos con
+solución de referencia conocida: crecimiento lineal ($x'=1$) y decrecimiento
+exponencial ($x'=-x$, $x(t)=e^{-t}$). Sobre el segundo se midió el error
+absoluto $E_n=|x(t_n)-x_n|$ para $h\in\{1,\,0{,}5,\,0{,}1,\,0{,}05,\,0{,}01\}$
+y se compararon los métodos. En el modelo de remediación $V'(t)=-kV(t)$,
+$V(0)=1000$, se simularon organizaciones con $k=0{,}1$, $0{,}3$ y $0{,}7$;
+se estudió el modelo discreto $V_{n+1}=(1-hk)V_n$ y la extensión
+$V'(t)=\lambda-kV(t)$ con nuevas vulnerabilidades.
+
+Euler resulta exacto en el caso lineal para cualquier $h$; en el exponencial,
+el error máximo cae de $3{,}68\times10^{-1}$ ($h=1$) a $1{,}85\times10^{-3}$
+($h=0{,}01$), con 10 y 1000 iteraciones respectivamente. Euler mejorado
+alcanza error máximo menor que Euler para igual $h$ ($6{,}6\times10^{-3}$ frente
+a $1{,}9\times10^{-2}$ con $h=0{,}1$), al costo de dos evaluaciones de $f$ por
+iteración. Con mayor $k$ la cantidad de equipos vulnerables decrece más
+rápido; $h=1$ introduce errores de hasta $\sim200$ equipos para $k=0{,}7$,
+mucho menores con $h=0{,}1$. El modelo discreto es una sucesión geométrica de
+razón $1-hk$: para $hk>1$ toma valores negativos, sin sentido físico. Con
+$\lambda>0$, $V(t)$ se estabiliza en $V^*=\lambda/k$.
+
+% [Pendiente: conclusión principal, a completar junto con la Sección de
+% Conclusiones.]
+
+% ---------------------------------------------------------------------------
+\section{Introducción}
+% ---------------------------------------------------------------------------
+
+Muchos problemas de la vida real involucran cantidades que cambian a lo largo
+del tiempo: el crecimiento de una población, la evolución de la temperatura,
+la carga de una batería o, en el ámbito de la informática, la cantidad de
+equipos de una organización que permanecen expuestos a una vulnerabilidad de
+seguridad. Estudiar estos fenómenos consiste, en esencia, en describir cómo
+cambia una variable durante intervalos pequeños de tiempo.
+
+Cuando no es posible (o no es necesario) resolver analíticamente una ecuación
+diferencial, se puede aproximar la evolución del sistema mediante métodos
+numéricos: sucesiones de valores calculadas paso a paso en una computadora.
+Este proyecto parte de conceptos ya conocidos ---sucesiones, ecuaciones en
+diferencias y derivadas--- para introducir progresivamente el concepto de
+ecuación diferencial y su simulación computacional.
+
+El problema elegido es la gestión de vulnerabilidades en ciberseguridad.
+Supongamos que una organización posee inicialmente una determinada cantidad de
+equipos vulnerables y que, a medida que se aplican actualizaciones y parches,
+dicha cantidad disminuye. Nos interesa estudiar cómo evoluciona ese proceso y
+cómo influyen la rapidez de remediación, el tamaño del paso utilizado en la
+simulación, el método numérico empleado, las condiciones iniciales y la
+aparición de nuevas vulnerabilidades.
+
+\textbf{Objetivo general.}
+Estudiar métodos numéricos sencillos para aproximar la evolución de sistemas
+dinámicos y analizar su aplicación en un problema relacionado con la gestión de
+vulnerabilidades informáticas.
+
+\textbf{Objetivos específicos.}
+\begin{itemize}
+  \item Relacionar ecuaciones en diferencias con ecuaciones diferenciales.
+  \item Implementar el método de Euler y una mejora del mismo.
+  \item Analizar el efecto del tamaño del paso y estudiar el error numérico.
+  \item Comparar métodos en términos de precisión y costo computacional.
+  \item Aplicar los métodos a un modelo simplificado de ciberseguridad e
+        interpretar los resultados.
+  \item Investigar conceptos vinculados con gestión de vulnerabilidades, CVE,
+        CVSS y MITRE ATT\&CK.
+\end{itemize}
+
+El informe está organizado como sigue: en la Sección~\ref{sec:marco} se
+presenta el marco teórico (de las ecuaciones en diferencias a los métodos
+numéricos y a los conceptos de ciberseguridad); en la
+Sección~\ref{sec:metodologia} se describe la metodología de implementación y
+los experimentos planificados; la Sección~\ref{sec:resultados} recoge los
+resultados numéricos; la Sección~\ref{sec:discusion} discute los hallazgos, y
+la Sección~\ref{sec:conclusiones} resume las conclusiones.
+
+% ---------------------------------------------------------------------------
+\section{Marco teórico}
+\label{sec:marco}
+% ---------------------------------------------------------------------------
+
+\subsection{De las ecuaciones en diferencias a las ecuaciones diferenciales}
+\label{sec:marco-diferencias}
+
+Consideremos una variable $x(t)$ que cambia con el tiempo. La derivada
+\begin{equation}
+  x'(t)
+\end{equation}
+representa la tasa de cambio instantánea de $x$. Para un incremento pequeño
+$h$, la definición de derivada permite utilizar la aproximación
+\begin{equation}
+  x'(t) \approx \frac{x(t+h) - x(t)}{h}.
+  \label{eq:aprox-derivada}
+\end{equation}
+
+Si una ecuación diferencial tiene la forma
+\begin{equation}
+  x'(t) = f(t, x),
+  \label{eq:edo}
+\end{equation}
+entonces, sustituyendo en~\eqref{eq:aprox-derivada},
+\begin{equation}
+  \frac{x(t+h) - x(t)}{h} \approx f(t, x).
+\end{equation}
+Despejando $x(t+h)$,
+\begin{equation}
+  x(t+h) \approx x(t) + h\, f(t, x).
+  \label{eq:euler-continuo}
+\end{equation}
+
+Si definimos $t_n = t_0 + nh$ e identificamos $x_n \approx x(t_n)$,
+la expresión~\eqref{eq:euler-continuo} se convierte en la \emph{ecuación en
+diferencias}
+\begin{equation}
+  x_{n+1} = x_n + h\, f(t_n, x_n),
+  \label{eq:euler-discreto}
+\end{equation}
+que constituye la idea básica del método de Euler. Obsérvese que una ecuación
+diferencial se transforma así en una sucesión discreta: el valor en el paso
+siguiente se obtiene a partir del valor actual, sin necesidad de resolver la
+ecuación analíticamente.
+
+\subsection{Método de Euler}
+\label{sec:marco-euler}
+
+El método de Euler aproxima la solución del problema de valor inicial
+\begin{equation}
+  x'(t) = f(t, x), \qquad x(t_0) = x_0.
+\end{equation}
+Construye la sucesión
+\begin{equation}
+  \boxed{\; x_{n+1} = x_n + h\, f(t_n, x_n) \;},
+  \qquad t_{n+1} = t_n + h,
+  \label{eq:euler}
+\end{equation}
+donde el parámetro $h > 0$ se denomina \emph{tamaño del paso}. Geométricamente,
+en cada paso se avanza desde el punto $(t_n, x_n)$ en la dirección de la
+pendiente $f(t_n, x_n)$, evaluada al comienzo del intervalo.
+
+\subsection{Método de Euler mejorado}
+\label{sec:marco-mejorado}
+
+El método de Euler utiliza únicamente la pendiente al comienzo de cada
+intervalo. Una posible mejora (método de Heun o Euler mejorado) consiste en
+realizar primero una \emph{predicción},
+\begin{equation}
+  \tilde{x}_{n+1} = x_n + h\, f(t_n, x_n),
+\end{equation}
+y utilizar luego el \emph{promedio} entre la pendiente inicial y la pendiente
+predicha al final del intervalo:
+\begin{equation}
+  \boxed{\;
+    x_{n+1} = x_n + \frac{h}{2}\Bigl[f(t_n, x_n) + f\bigl(t_{n+1},
+    \tilde{x}_{n+1}\bigr)\Bigr].
+  \;}
+  \label{eq:euler-mejorado}
+\end{equation}
+Cada iteración requiere dos evaluaciones de $f$, en lugar de una. En la
+literatura numérica, Euler es un método de orden~1 y Euler mejorado es un
+método de orden~2: al reducir $h$ a la mitad, el error máximo del primero se
+reduce aproximadamente a la mitad y el del segundo aproximadamente a una
+cuarta parte~\cite{burden2016}.
+
+\subsection{Error numérico}
+\label{sec:marco-error}
+
+Para comparar una aproximación numérica $x_n$ con una solución de referencia
+$x(t_n)$ se define el \emph{error absoluto}
+\begin{equation}
+  E_n = \bigl| x(t_n) - x_n \bigr|.
+  \label{eq:error}
+\end{equation}
+Algunos problemas admiten solución de referencia conocida (por ejemplo,
+$x(t) = e^{-t}$ para $x' = -x$, $x(0)=1$), lo que permite medir cuantitativamente
+la calidad de la aproximación sin requerir resolución analítica de la ecuación
+diferencial en el informe. Del error se derivan medidas útiles como el
+\emph{error final} $E_N$ (en el último tiempo simulado) y el \emph{error
+máximo} $E_{\max} = \max_n E_n$ sobre toda la trayectoria.
+
+\subsection{Gestión de vulnerabilidades}
+\label{sec:marco-gestion}
+
+Una \emph{vulnerabilidad} es una debilidad en un sistema informático que puede
+ser explotada por un atacante para comprometer su confidencialidad,
+integridad o disponibilidad~\cite{nistvuln}. La \emph{gestión de
+vulnerabilidades} es el proceso cíclico de identificar, evaluar, tratar y
+reportar estas debilidades de forma continua~\cite{nist80040}. El tratamiento
+habitual consiste en aplicar un \emph{parche de seguridad}: una actualización
+de software que corrige la vulnerabilidad. El \emph{tiempo de corrección o
+remediación} es el lapso transcurrido entre la aparición (o detección) de la
+vulnerabilidad y la aplicación efectiva del parche en el activo afectado.
+
+Para estandarizar la identificación y la priorización existen dos referentes
+internacionales:
+
+\begin{itemize}
+  \item \textbf{CVE} (\emph{Common Vulnerabilities and Exposures}): catálogo
+        público, mantenido por MITRE, que asigna un identificador estándar
+        (con formato \texttt{CVE-AAAA-NNNNN}) a cada vulnerabilidad conocida
+        y pública, evitando la ambigüedad entre proveedores~\cite{cve}.
+  \item \textbf{CVSS} (\emph{Common Vulnerability Scoring System}): sistema
+        de puntuación mantenido por FIRST que cuantifica la severidad de una
+        vulnerabilidad en una escala de 0 a 10, a partir de métricas de
+        explotabilidad e impacto~\cite{cvss}. La puntuación CVSS es una de
+        las herramientas de \emph{priorización} más utilizadas: a igualdad de
+        otras condiciones, primero se parchean los sistemas con vulnerabilidades
+        de mayor severidad.
+\end{itemize}
+
+Mantener sistemas sin actualizar tiene consecuencias directas: un equipo
+vulnerable permanece expuesto durante todo el tiempo de remediación, lo que
+amplía la \emph{superficie de ataque} de la organización---el conjunto de
+puntos de entrada potencialmente explotables. Desde el punto de vista
+operativo, la rapidez con la que se apagan vulnerabilidades se puede modelar
+como un parámetro de remediación $k$: un valor de $k$ mayor indica una
+respuesta más rápida (más equipos parcheados por unidad de tiempo).
+
+\subsection{MITRE ATT\&CK: técnica T1190}
+\label{sec:marco-t1190}
+
+MITRE ATT\&CK for Enterprise es una base de conocimiento que documenta las
+tácticas y técnicas que los adversarios utilizan en ataques reales~\cite{mitre}.
+La técnica \textbf{T1190 --- Exploit Public-Facing Application} consiste en
+explotar una vulnerabilidad de una aplicación expuesta a Internet (servidor
+web, servicio de correo, VPN, panel de administración, etc.) para obtener un
+acceso inicial a la red de la víctima~\cite{t1190}.
+
+Esta técnica se relaciona directamente con la existencia de sistemas que
+permanecen vulnerables: una aplicación pública con una vulnerabilidad sin
+parchear es, precisamente, el objetivo de T1190. Reducir el tiempo de
+remediación disminuye la ventana durante la cual ese objetivo existe y, por
+tanto, reduce la superficie de ataque. En términos del modelo estudiado en
+este informe, el parámetro $k$ representa la capacidad de respuesta del
+proceso de remediación: a mayor $k$, más rápido decrece la cantidad de
+equipos vulnerables $V(t)$ y menos tiempo queda expuesta la organización a
+técnicas como T1190.
+
+% ---------------------------------------------------------------------------
+\section{Metodología}
+\label{sec:metodologia}
+% ---------------------------------------------------------------------------
+
+\subsection{Implementación}
+
+Los métodos numéricos se implementaron en Python en los módulos
+\texttt{euler.py} (funciones \texttt{euler} y \texttt{euler\_mejorado}) y
+\texttt{simulaciones.py} (experimentos y generación de figuras y tablas).
+Ambas funciones reciben la función $f(t,x)$, la condición inicial $x_0$, los
+tiempos inicial $t_0$ y final $tf$, y el tamaño de paso $h$; devuelven los
+valores de tiempo $t_n$, los valores aproximados $x_n$ y la cantidad de pasos
+realizados.
+
+El método de Euler se obtuvo de la ecuación en
+diferencias~\eqref{eq:euler}. El Euler mejorado implementa el esquema de
+predicción-corrección de la ecuación~\eqref{eq:euler-mejorado}: en cada paso
+se calcula primero $\tilde{x}_{n+1}$ (pendiente inicial) y luego se promedia
+con $f(t_{n+1}, \tilde{x}_{n+1})$ (pendiente predicha).
+
+En todos los experimentos, la simulación comienza en $t_0 = 0$ y avanza con
+paso constante $h$ mientras $t_n \le tf$ (se incluye el instante final cuando
+$h$ divide a $tf$; en caso contrario, el último punto es el inmediatamente
+anterior).
+
+\subsection{Experimentos}
+
+Se planificaron los siguientes experimentos, en línea con los objetivos
+específicos:
+
+\begin{enumerate}
+  \item \textbf{Caso 1 --- crecimiento lineal.}
+        $x'(t) = 1$, $x(0) = 0$, con solución de referencia $x(t) = t$,
+        para $0 \le t \le 10$ y $h \in \{1,\, 0{,}5,\, 0{,}1\}$.
+        Verifica la implementación en un caso donde la aproximación debe ser
+        exacta (la pendiente es constante).
+  \item \textbf{Caso 2 --- decrecimiento exponencial.}
+        $x'(t) = -x$, $x(0) = 1$, con solución de referencia $x(t) = e^{-t}$,
+        para $0 \le t \le 10$ y $h \in \{1,\, 0{,}5,\, 0{,}1,\, 0{,}01\}$.
+  \item \textbf{Error y tamaño del paso.}
+        Para el caso 2, se calcula el error absoluto
+        $E_n = |x(t_n) - x_n|$ con $h \in \{1,\, 0{,}5,\, 0{,}1,\, 0{,}05,\,
+        0{,}01\}$; se grafica $E_n$ contra $t$ y se registran número de pasos,
+        error final y error máximo.
+  \item \textbf{Comparación de métodos.}
+        Se aplican Euler y Euler mejorado al caso 2 con
+        $h \in \{1,\, 0{,}5,\, 0{,}1\}$ y se comparan valor final, error final,
+        error máximo y cantidad de pasos.
+  \item \textbf{Aplicación: gestión de vulnerabilidades.}
+        Modelo $V'(t) = -k V(t)$, $V(0) = V_0 = 1000$, con solución de
+        referencia $V(t) = V_0 e^{-kt}$, para tres organizaciones
+        (A: $k = 0{,}1$; B: $k = 0{,}3$; C: $k = 0{,}7$),
+        $0 \le t \le 20$ y $h \in \{1,\, 0{,}5,\, 0{,}1\}$.
+        Se registran los valores de $V$ en $t = 5, 10, 15$ y el error frente
+        a la referencia.
+  \item \textbf{Modelo discreto.}
+        Análisis de la ecuación en diferencias
+        $V_{n+1} = (1 - hk)\, V_n$ obtenida al aplicar Euler al modelo
+        anterior: tipo de sucesión, expresión explícita, límite y valores de
+        $hk$ con sentido físico.
+  \item \textbf{Modelo con nuevas vulnerabilidades.}
+        $V'(t) = \lambda - k V(t)$ con $V_0 = 1000$, $k = 0{,}3$ y
+        $\lambda \in \{0,\, 50,\, 100,\, 200\}$, simulado con Euler.
+\end{enumerate}
+
+\subsection{Criterios de análisis}
+
+\begin{itemize}
+  \item \textbf{Exactitud:} se mide con el error absoluto
+        $E_n$~\eqref{eq:error} frente a la solución de referencia, reportando
+        error final y error máximo.
+  \item \textbf{Efecto del paso:} se compara el error y el número de pasos
+        al variar $h$; el costo computacional se asocia a la cantidad de
+        iteraciones (y, en Euler mejorado, a las dos evaluaciones de $f$ por
+        iteración).
+  \item \textbf{Sentido físico del modelo discreto:} se examina cuándo
+        $(1-hk)$ produce sucesiones no negativas, condición necesaria para
+        que $V_n$ represente una cantidad de equipos.
+  \item \textbf{Interpretación organizacional:} los resultados se contrastan
+        con los conceptos de gestión de vulnerabilidades, CVE, CVSS y técnicas
+        ATT\&CK de la Sección~\ref{sec:marco-gestion}.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\section{Resultados}
+\label{sec:resultados}
+% ---------------------------------------------------------------------------
+% SECCIÓN A COMPLETAR. Presentar aquí los datos obtenidos de forma objetiva,
+% con figuras y tablas numeradas y referenciadas desde el texto, sin
+% interpretación (la interpretación va en Discusión).
+%
+% Los archivos de figuras y tablas ya fueron generados por simulaciones.py
+% (ver listado al comienzo de este archivo). Para incorporarlos, basta con
+% descomentar los bloques correspondientes y ajustar números de figura/tabla,
+% textos de pie y referencias en el cuerpo.
+
+\subsection{Verificación: casos 1 y 2}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{caso1_lineal.pdf}
+%   \caption{Caso 1: crecimiento lineal. Solución de referencia $x(t)=t$
+%   comparada con las aproximaciones de Euler para $h=1$, $h=0{,}5$ y
+%   $h=0{,}1$, en $0 \le t \le 10$.}
+%   \label{fig:caso1}
+% \end{figure}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{caso2_exponencial.pdf}
+%   \caption{Caso 2: decrecimiento exponencial. Solución de referencia
+%   $x(t)=e^{-t}$ comparada con las aproximaciones de Euler para
+%   $h=1$, $h=0{,}5$, $h=0{,}1$ y $h=0{,}01$, en $0 \le t \le 10$.}
+%   \label{fig:caso2}
+% \end{figure}
+
+% Describir objetivamente lo observado (p.~ej., en el caso 1 la
+% aproximación coincide con la referencia para cualquier $h$; en el caso 2
+% las curvas se acercan a la referencia a medida que $h$ disminuye).
+
+\subsection{Error numérico y tamaño del paso}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{error_vs_t.pdf}
+%   \caption{Error absoluto $E_n = |x(t_n) - x_n|$ en función del tiempo para
+%   el caso 2 ($x'=-x$, $x(0)=1$), con $h = 1$, $0{,}5$, $0{,}1$, $0{,}05$ y
+%   $0{,}01$.}
+%   \label{fig:error}
+% \end{figure}
+
+% \input{../tablas/error}
+
+% Completar con las observaciones directas sobre el error (sin interpretar).
+
+\subsection{Comparación entre Euler y Euler mejorado}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{euler_vs_mejorado.pdf}
+%   \caption{Euler y Euler mejorado con $h=1$ frente a la solución de
+%   referencia $x(t)=e^{-t}$, en $0 \le t \le 10$.}
+%   \label{fig:mejorado}
+% \end{figure}
+
+% \input{../tablas/mejorado}
+
+\subsection{Gestión de vulnerabilidades: organizaciones A, B y C}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{orgs_abc.pdf}
+%   \caption{Evolución de equipos vulnerables $V(t)$ para las organizaciones
+%   A ($k=0{,}1$), B ($k=0{,}3$) y C ($k=0{,}7$), con $V_0=1000$. Curvas
+%   continuas: solución de referencia $V(t)=1000\,e^{-kt}$; puntos: Euler con
+%   $h=1$.}
+%   \label{fig:orgs}
+% \end{figure}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{org_b_paso.pdf}
+%   \caption{Organización B ($k=0{,}3$): solución de referencia y
+%   aproximaciones de Euler con $h=1$, $h=0{,}5$ y $h=0{,}1$, en
+%   $0 \le t \le 20$.}
+%   \label{fig:org-b}
+% \end{figure}
+
+% \input{../tablas/orgs}
+
+% \input{../tablas/orgs_h}
+
+\subsection{Modelo discreto}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{discreto_hk.pdf}
+%   \caption{Modelo discreto $V_{n+1}=(1-hk)V_n$ con $k=0{,}3$ y $V_0=1000$
+%   para $hk=0{,}3$ (positivo), $hk=1{,}5$ (alterna el signo) y
+%   $hk=2{,}5$ (diverge).}
+%   \label{fig:discreto}
+% \end{figure}
+
+% Registrar la sucesión obtenida, valores de $V_n$ para distintos $hk$.
+
+\subsection{Modelo con aparición de nuevas vulnerabilidades}
+
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.85\textwidth]{lambda_modelo.pdf}
+%   \caption{Modelo $V'(t) = \lambda - 0{,}3\,V(t)$ con $V_0=1000$, para
+%   $\lambda = 0$, $50$, $100$ y $200$. Marcas: simulación con Euler
+%   ($h=0{,}1$); curvas: solución de referencia. Niveles estacionarios
+%   $V^* = \lambda/k$.}
+%   \label{fig:lambda}
+% \end{figure}
+
+% Describir el comportamiento observado en cada caso de $\lambda$.
+
+% ---------------------------------------------------------------------------
+\section{Discusión}
+\label{sec:discusion}
+% ---------------------------------------------------------------------------
+% SECCIÓN A COMPLETAR (interpretación de los resultados de la Sección 4).
+% Sugerencias de contenido:
+%   - qué sucede con el error y con el número de iteraciones al disminuir h;
+%     compromiso entre precisión y costo computacional;
+%   - cuál de los dos métodos presenta menor error y si depende de h;
+%     operaciones por iteración; cuándo conviene un método más preciso;
+%   - qué representa k, cuál organización remedia más rápido, cómo cambia la
+%     gráfica al aumentar k; factores reales que justifican valores distintos
+%     de k entre organizaciones;
+%   - análisis de hk > 1 y valores negativos en el modelo discreto;
+%   - comportamiento del modelo con λ (decrecer, crecer o estabilizarse) y
+%     su interpretación organizacional;
+%   - limitaciones del modelo (equipos idénticos, k constante, no considera
+%     ataques reales ni la aparición de vulnerabilidades ---salvo en el modelo
+%     con λ---, etc.) y qué aspectos incorporaría un modelo más realista;
+%   - análisis global: precisión ↔ tamaño del paso ↔ costo computacional,
+%     estabilidad y significado informático de los resultados.
+
+% ---------------------------------------------------------------------------
+\section{Conclusiones}
+\label{sec:conclusiones}
+% ---------------------------------------------------------------------------
+% SECCIÓN VACÍA A PROPÓSITO. Debe contener:
+%   - síntesis de los hallazgos más importantes;
+%   - respuesta a los objetivos planteados en la Introducción;
+%   - implicancias o recomendaciones;
+%   - posibles líneas futuras.
+% No presentar resultados nuevos.
+
+% ---------------------------------------------------------------------------
+\section{Bibliografía}
+% ---------------------------------------------------------------------------
+% Formato APA. Las referencias siguientes corresponden a las fuentes técnicas
+% citadas en el marco teórico; completar con las que se utilicen en la
+% Discusión.
+
+\begin{thebibliography}{99}
+\bibitem{burden2016}
+Burden, R.~L., \& Faires, J.~D. (2016).
+\emph{Numerical Analysis} (10th~ed.). Cengage Learning.
+
+\bibitem{cve}
+MITRE. (s.\,f.).
+\emph{CVE --- Common Vulnerabilities and Exposures}.
+https://www.cve.org/
+
+\bibitem{cvss}
+Forum of Incident Response and Security Teams (FIRST). (s.\,f.).
+\emph{Common Vulnerability Scoring System}.
+https://www.first.org/cvss/
+
+\bibitem{nistvuln}
+National Institute of Standards and Technology (NIST). (s.\,f.).
+\emph{Vulnerabilities}.
+Glossary. https://csrc.nist.gov/glossary/vulnerability
+
+\bibitem{nist80040}
+National Institute of Standards and Technology (NIST). (2022).
+\emph{Guide to Enterprise Patch Management Planning: Preventive Maintenance
+for Technology} (NIST Special Publication 800-40 Revision 4).
+https://doi.org/10.6028/NIST.SP.800-40r4
+
+\bibitem{mitre}
+MITRE. (s.\,f.).
+\emph{MITRE ATT\&CK for Enterprise}.
+https://attack.mitre.org/
+
+\bibitem{t1190}
+MITRE. (s.\,f.).
+\emph{T1190: Exploit Public-Facing Application}.
+ATT\&CK for Enterprise.
+https://attack.mitre.org/techniques/T1190/
+\end{thebibliography}
+
+\end{document}
