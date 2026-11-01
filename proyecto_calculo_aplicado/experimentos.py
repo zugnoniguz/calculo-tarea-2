@@ -57,10 +57,9 @@ def calculate_absolute_errors(
 
 
 def save_figure(file_name: str) -> None:
-    """Guarda la figura actual en formatos PNG y PDF."""
+    """Guarda la figura actual en formato SVG."""
     plt.tight_layout()
-    plt.savefig(FIGURES_DIRECTORY / f"{file_name}.png")
-    plt.savefig(FIGURES_DIRECTORY / f"{file_name}.pdf")
+    plt.savefig(FIGURES_DIRECTORY / f"{file_name}.svg")
     plt.close()
 
 
