@@ -6,7 +6,7 @@ import numpy as np
 
 matplotlib.use("Agg")
 
-from metodos_numericos import euler, euler_improved
+from metodos_numericos import euler, euler_improved, runge_kutta_4
 from modelos import (
     linear_growth_derivative,
     linear_growth_reference,
@@ -15,6 +15,8 @@ from modelos import (
     vulnerability_remediation_derivative,
     vulnerability_remediation_reference,
     vulnerability_with_new_devices_derivative,
+    logistic_growth_derivative,
+    logistic_growth_reference,
 )
 
 
@@ -440,6 +442,158 @@ def run_task_6() -> None:
     )
 
 
+# Bonus: comparación de Euler, Heun y Runge-Kutta clásico de orden 4.
+def run_bonus() -> None:
+    """Simula el modelo logístico para varios valores iniciales y pasos."""
+    final_time = 10.0
+    initial_values = [0.1, 0.2, 0.5, 0.9]
+    step_sizes = [0.5, 0.2, 0.1, 0.05, 0.01]
+    methods = [
+        ("Euler", euler, 1),
+        ("Heun", euler_improved, 2),
+        ("RK4", runge_kutta_4, 4),
+    ]
+
+    comparison_rows = []
+    for initial_value in initial_values:
+        for step_size in step_sizes:
+            for method_name, method_function, evaluations_per_step in methods:
+                times, values, step_count = method_function(
+                    logistic_growth_derivative,
+                    initial_value,
+                    0.0,
+                    final_time,
+                    step_size,
+                )
+                errors = calculate_absolute_errors(
+                    times,
+                    values,
+                    lambda time, y0=initial_value: logistic_growth_reference(time, y0),
+                )
+                comparison_rows.append((
+                    method_name,
+                    initial_value,
+                    step_size,
+                    step_count,
+                    step_count * evaluations_per_step,
+                    values[-1],
+                    logistic_growth_reference(final_time, initial_value),
+                    errors[-1],
+                    float(errors.max()),
+                ))
+
+    save_csv(
+        "bonus_logistic_comparison.csv",
+        [
+            "method", "initial_value_y0", "step_size_h", "step_count",
+            "derivative_evaluations", "final_approximation",
+            "final_reference", "final_absolute_error", "maximum_absolute_error",
+        ],
+        comparison_rows,
+    )
+
+    # Tabla de convergencia para y0=0.2: permite comparar el efecto de h.
+    convergence_rows = []
+    convergence_results = []
+    reference_initial_value = 0.2
+    for method_name, method_function, evaluations_per_step in methods:
+        method_errors = []
+        for step_size in step_sizes:
+            times, values, step_count = method_function(
+                logistic_growth_derivative,
+                reference_initial_value,
+                0.0,
+                final_time,
+                step_size,
+            )
+            errors = calculate_absolute_errors(
+                times,
+                values,
+                lambda time: logistic_growth_reference(time, reference_initial_value),
+            )
+            maximum_error = float(errors.max())
+            method_errors.append((step_size, maximum_error))
+            convergence_rows.append((
+                method_name, step_size, step_count,
+                step_count * evaluations_per_step, errors[-1], maximum_error,
+            ))
+        convergence_results.append((method_name, method_errors))
+
+    save_csv(
+        "bonus_logistic_error_by_step.csv",
+        [
+            "method", "step_size_h", "step_count",
+            "derivative_evaluations", "final_absolute_error",
+            "maximum_absolute_error",
+        ],
+        convergence_rows,
+    )
+
+    # Figura 1: comparación de los tres métodos con un mismo y0 y un mismo h.
+    reference_times = np.linspace(0.0, final_time, 500)
+    plt.figure(figsize=(8, 4.8))
+    plt.plot(
+        reference_times,
+        [logistic_growth_reference(time, reference_initial_value) for time in reference_times],
+        color="black", linewidth=2.2, label="Solución exacta",
+    )
+    for method_name, method_function, _ in methods:
+        times, values, _ = method_function(
+            logistic_growth_derivative, reference_initial_value, 0.0, final_time, 0.5
+        )
+        plt.plot(times, values, marker="o", markersize=3, label=f"{method_name}, h=0.5")
+    plt.xlabel("Tiempo t")
+    plt.ylabel("y(t)")
+    plt.title("Bonus - Comparación de métodos para el modelo logístico (y0=0.2)")
+    plt.legend()
+    save_figure("bonus_logistic_method_comparison")
+
+    # Figura 2: efecto del tamaño de paso usando RK4.
+    plt.figure(figsize=(8, 4.8))
+    plt.plot(
+        reference_times,
+        [logistic_growth_reference(time, reference_initial_value) for time in reference_times],
+        color="black", linewidth=2.2, label="Solución exacta",
+    )
+    for step_size in step_sizes:
+        times, values, _ = runge_kutta_4(
+            logistic_growth_derivative, reference_initial_value, 0.0, final_time, step_size
+        )
+        plt.plot(times, values, label=f"RK4, h={step_size:g}")
+    plt.xlabel("Tiempo t")
+    plt.ylabel("y(t)")
+    plt.title("Bonus - Influencia del tamaño de paso en RK4 (y0=0.2)")
+    plt.legend(fontsize=8)
+    save_figure("bonus_logistic_step_sizes")
+
+    # Figura 3: error máximo global frente a h, en escala logarítmica.
+    plt.figure(figsize=(8, 4.8))
+    for method_name, method_errors in convergence_results:
+        plt.loglog(
+            [item[0] for item in method_errors],
+            [item[1] for item in method_errors],
+            marker="o", label=method_name,
+        )
+    plt.xlabel("Tamaño de paso h")
+    plt.ylabel("Error absoluto máximo")
+    plt.title("Bonus - Error máximo según el tamaño de paso (y0=0.2)")
+    plt.legend()
+    save_figure("bonus_logistic_error_vs_step")
+
+    # Figura 4: efecto de distintas condiciones iniciales con RK4.
+    plt.figure(figsize=(8, 4.8))
+    for initial_value in initial_values:
+        times, values, _ = runge_kutta_4(
+            logistic_growth_derivative, initial_value, 0.0, final_time, 0.1
+        )
+        plt.plot(times, values, label=f"y0={initial_value:g}")
+    plt.xlabel("Tiempo t")
+    plt.ylabel("y(t)")
+    plt.title("Bonus - Modelo logístico para distintas condiciones iniciales (RK4, h=0.1)")
+    plt.legend()
+    save_figure("bonus_logistic_initial_values")
+
+
 def run_all_tasks() -> None:
     tasks = [
         ("Tarea 1: verificación de Euler", run_task_1),
@@ -448,6 +602,7 @@ def run_all_tasks() -> None:
         ("Tarea 4: gestión de vulnerabilidades", run_task_4),
         ("Tarea 5: modelo discreto", run_task_5),
         ("Tarea 6: nuevas vulnerabilidades", run_task_6),
+        ("Bonus: modelo de crecimiento logístico", run_bonus),
     ]
     total = len(tasks)
 
@@ -457,6 +612,3 @@ def run_all_tasks() -> None:
 
     print(f"Experiments completed. Results saved in: {OUTPUT_DIRECTORY}", flush=True)
 
-
-if __name__ == "__main__":
-    run_all_tasks()

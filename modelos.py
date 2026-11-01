@@ -1,5 +1,10 @@
 import math
 
+
+# ---------------------------------------------------------------------------
+# Casos de verificación del método (propuesta, sección 5).
+# ---------------------------------------------------------------------------
+
 def linear_growth_derivative(t: float, x: float) -> float:
     """x'(t) = 1."""
     return 1.0
@@ -19,6 +24,9 @@ def exponential_decay_reference(t: float) -> float:
     """Solución de referencia del caso 2: x(t) = e^(-t)."""
     return math.exp(-t)
 
+# ---------------------------------------------------------------------------
+# Gestión de vulnerabilidades (propuesta, secciones 8 y 10).
+# ---------------------------------------------------------------------------
 
 def vulnerability_remediation_derivative(
     t: float,
@@ -55,3 +63,22 @@ def vulnerability_with_new_devices_derivative(
     de nuevos equipos vulnerables por unidad de tiempo.
     """
     return lambd - k * v
+
+
+# ---------------------------------------------------------------------------
+# Bonus: modelo de crecimiento logístico.
+# ---------------------------------------------------------------------------
+
+def logistic_growth_derivative(time: float, value: float) -> float:
+    """Bonus: y'(t) = y(t) * (1 - y(t))."""
+    return value * (1.0 - value)
+
+
+def logistic_growth_reference(time: float, initial_value: float) -> float:
+    """Solución exacta del modelo logístico para 0 < initial_value < 1."""
+    if not 0.0 < initial_value < 1.0:
+        raise ValueError("initial_value must be between 0 and 1 (exclusive).")
+
+    return 1.0 / (
+        1.0 + ((1.0 - initial_value) / initial_value) * math.exp(-time)
+    )
