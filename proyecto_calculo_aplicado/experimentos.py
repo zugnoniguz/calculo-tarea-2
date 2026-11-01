@@ -27,7 +27,6 @@ from modelos import (
     vulnerability_remediation_derivative,
     vulnerability_remediation_reference,
     vulnerability_with_new_devices_derivative,
-    vulnerability_with_new_devices_reference,
 )
 
 
@@ -433,21 +432,12 @@ def run_activity_6() -> None:
     step_size = 0.1
     result_rows = []
 
-    reference_times = np.linspace(0, final_time, 500)
     plt.figure(figsize=(8, 4.8))
 
     for new_vulnerability_rate in new_vulnerability_rates:
         derivative = lambda time, value, rate=new_vulnerability_rate: (
             vulnerability_with_new_devices_derivative(
                 time, value, remediation_rate, rate
-            )
-        )
-        reference = lambda time, rate=new_vulnerability_rate: (
-            vulnerability_with_new_devices_reference(
-                time,
-                initial_vulnerable_devices,
-                remediation_rate,
-                rate,
             )
         )
 
@@ -461,17 +451,10 @@ def run_activity_6() -> None:
         equilibrium_value = new_vulnerability_rate / remediation_rate
 
         plt.plot(times, values, label=f"Euler, lambda={new_vulnerability_rate:g}")
-        plt.plot(
-            reference_times,
-            [reference(time) for time in reference_times],
-            linestyle="--",
-            label=f"Referencia, lambda={new_vulnerability_rate:g}",
-        )
 
         result_rows.append((
             new_vulnerability_rate,
             values[-1],
-            reference(final_time),
             equilibrium_value,
             step_count,
         ))
@@ -486,7 +469,7 @@ def run_activity_6() -> None:
         "actividad_6_resultados.csv",
         [
             "new_vulnerability_rate_lambda", "euler_value_at_final_time",
-            "reference_value_at_final_time", "equilibrium_value", "step_count",
+            "equilibrium_value", "step_count",
         ],
         result_rows,
     )
