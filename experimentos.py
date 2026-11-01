@@ -1,22 +1,10 @@
-"""
-Experimentos, tablas y gráficos requeridos por la propuesta del proyecto.
-
-Este módulo organiza las actividades computacionales:
-- Sección 5: verificación de Euler.
-- Sección 6: error numérico.
-- Sección 7: Euler mejorado.
-- Sección 8: gestión de vulnerabilidades.
-- Sección 9: comportamiento del modelo discreto.
-- Sección 10: aparición de nuevas vulnerabilidades.
-"""
-
 from pathlib import Path
 import csv
-
 import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+
+matplotlib.use("Agg")
 
 from metodos_numericos import euler, euler_improved
 from modelos import (
@@ -59,13 +47,15 @@ def calculate_absolute_errors(
 def save_figure(file_name: str) -> None:
     """Guarda la figura actual en formato SVG."""
     plt.tight_layout()
-    plt.savefig(FIGURES_DIRECTORY / f"{file_name}.svg")
+    figure_path = FIGURES_DIRECTORY / f"{file_name}.svg"
+    plt.savefig(figure_path)
     plt.close()
 
 
 def save_csv(file_name: str, headers: list[str], rows: list[tuple]) -> None:
     """Guarda una tabla de resultados en formato CSV."""
-    with (TABLES_DIRECTORY / file_name).open("w", newline="", encoding="utf-8") as csv_file:
+    table_path = TABLES_DIRECTORY / file_name
+    with table_path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(headers)
         writer.writerows(rows)
@@ -102,11 +92,7 @@ def plot_reference_and_approximations(
     save_figure(file_name)
 
 
-# ===========================================================================
-# Sección 5 de la propuesta: verificación del método de Euler.
-# ===========================================================================
-
-def run_activity_1() -> None:
+def run_task_1() -> None:
     """Ejecuta los dos casos de verificación solicitados en la sección 5."""
     final_time = 10.0
 
@@ -127,12 +113,12 @@ def run_activity_1() -> None:
         linear_growth_reference,
         linear_results,
         final_time,
-        "Actividad 1 - Caso 1: crecimiento lineal",
+        "Caso 1: crecimiento lineal",
         "x(t)",
-        "actividad_1_caso_1_lineal",
+        "crecimiento_lineal",
     )
     save_csv(
-        "actividad_1_caso_1.csv",
+        "crecimiento_lineal.csv",
         ["step_size", "step_count", "final_value", "final_error", "maximum_error"],
         linear_rows,
     )
@@ -154,22 +140,18 @@ def run_activity_1() -> None:
         exponential_decay_reference,
         exponential_results,
         final_time,
-        "Actividad 1 - Caso 2: decrecimiento exponencial",
+        "Caso 2: decrecimiento exponencial",
         "x(t)",
-        "actividad_1_caso_2_exponencial",
+        "decrecimiento_exponencial",
     )
     save_csv(
-        "actividad_1_caso_2.csv",
+        "decrecimiento_exponencial.csv",
         ["step_size", "step_count", "final_value", "final_error", "maximum_error"],
         exponential_rows,
     )
 
 
-# ===========================================================================
-# Sección 6 de la propuesta: error numérico y tamaño del paso.
-# ===========================================================================
-
-def run_activity_2() -> None:
+def run_task_2() -> None:
     """Calcula y grafica el error absoluto para los pasos indicados."""
     final_time = 10.0
     step_sizes = [1.0, 0.5, 0.1, 0.05, 0.01]
@@ -191,22 +173,18 @@ def run_activity_2() -> None:
         plt.plot(times, errors, label=label)
     plt.xlabel("Tiempo t")
     plt.ylabel("Error absoluto")
-    plt.title("Actividad 2 - Error absoluto de Euler en función del tiempo")
+    plt.title("Error absoluto de Euler en función del tiempo")
     plt.legend()
-    save_figure("actividad_2_error_vs_tiempo")
+    save_figure("error_absoluto_vs_tiempo")
 
     save_csv(
-        "actividad_2_tabla_errores.csv",
+        "error_absoluto_vs_tiempo.csv",
         ["step_size", "step_count", "final_error", "maximum_error"],
         error_rows,
     )
 
 
-# ===========================================================================
-# Sección 7 de la propuesta: comparación entre Euler y Euler mejorado.
-# ===========================================================================
-
-def run_activity_3() -> None:
+def run_task_3() -> None:
     """Compara ambos métodos para h = 1, 0.5 y 0.1."""
     final_time = 10.0
     step_sizes = [1.0, 0.5, 0.1]
@@ -249,22 +227,18 @@ def run_activity_3() -> None:
 
     plt.xlabel("Tiempo t")
     plt.ylabel("x(t)")
-    plt.title("Actividad 3 - Euler frente a Euler mejorado")
+    plt.title("Euler frente a Euler mejorado")
     plt.legend()
-    save_figure("actividad_3_comparacion_metodos")
+    save_figure("euler_vs_euler_mejorado")
 
     save_csv(
-        "actividad_3_comparacion.csv",
+        "euler_vs_euler_mejorado.csv",
         ["method", "step_size", "final_value", "final_error", "step_count"],
         comparison_rows,
     )
 
 
-# ===========================================================================
-# Sección 8 de la propuesta: gestión de vulnerabilidades.
-# ===========================================================================
-
-def run_activity_4() -> None:
+def run_task_4() -> None:
     """Simula las organizaciones A, B y C para los pasos solicitados."""
     initial_vulnerable_devices = 1000.0
     final_time = 20.0
@@ -330,12 +304,12 @@ def run_activity_4() -> None:
 
     plt.xlabel("Tiempo t (días)")
     plt.ylabel("Cantidad de equipos vulnerables V(t)")
-    plt.title("Actividad 4 - Remediación en las organizaciones A, B y C")
+    plt.title("Remediación en las organizaciones A, B y C")
     plt.legend(fontsize=8)
-    save_figure("actividad_4_organizaciones")
+    save_figure("remediacion_organizaciones")
 
     save_csv(
-        "actividad_4_resultados.csv",
+        "remediacion_organizaciones.csv",
         [
             "organization", "remediation_rate_k", "step_size", "time",
             "euler_value", "reference_value", "absolute_error",
@@ -363,17 +337,13 @@ def run_activity_4() -> None:
         reference,
         results,
         final_time,
-        "Actividad 4 - Organización B: efecto del tamaño del paso",
+        "Organización B: efecto del tamaño del paso",
         "Equipos vulnerables V(t)",
-        "actividad_4_organizacion_b_tamanos_paso",
+        "organizacion_b_efecto_paso",
     )
 
 
-# ===========================================================================
-# Sección 9 de la propuesta: modelo discreto.
-# ===========================================================================
-
-def run_activity_5() -> None:
+def run_task_5() -> None:
     """
     Genera experimentos numéricos para distintos valores de h*k.
 
@@ -394,7 +364,7 @@ def run_activity_5() -> None:
         values = [vulnerable_devices]
 
         for iteration in range(iteration_count):
-            # Actividad 5: recurrencia V_(n+1) = (1-hk) * V_n.
+            # Recurrencia V_(n+1) = (1-hk) * V_n.
             vulnerable_devices = multiplier * vulnerable_devices
             values.append(vulnerable_devices)
             result_rows.append((
@@ -407,22 +377,18 @@ def run_activity_5() -> None:
     plt.axhline(0, linewidth=0.8)
     plt.xlabel("Iteración n")
     plt.ylabel("Equipos vulnerables V_n")
-    plt.title("Actividad 5 - Comportamiento del modelo discreto")
+    plt.title("Comportamiento del modelo discreto")
     plt.legend()
-    save_figure("actividad_5_modelo_discreto")
+    save_figure("modelo_discreto")
 
     save_csv(
-        "actividad_5_modelo_discreto.csv",
+        "modelo_discreto.csv",
         ["h_times_k", "iteration", "sequence_multiplier", "vulnerable_devices"],
         result_rows,
     )
 
 
-# ===========================================================================
-# Sección 10 de la propuesta: aparición de nuevas vulnerabilidades.
-# ===========================================================================
-
-def run_activity_6() -> None:
+def run_task_6() -> None:
     """Simula V'(t) = lambda - kV(t) para los cuatro valores de lambda."""
     initial_vulnerable_devices = 1000.0
     remediation_rate = 0.3
@@ -460,12 +426,12 @@ def run_activity_6() -> None:
 
     plt.xlabel("Tiempo t")
     plt.ylabel("Equipos vulnerables V(t)")
-    plt.title("Actividad 6 - Aparición de nuevas vulnerabilidades")
+    plt.title("Aparición de nuevas vulnerabilidades")
     plt.legend(fontsize=8)
-    save_figure("actividad_6_nuevas_vulnerabilidades")
+    save_figure("nuevas_vulnerabilidades")
 
     save_csv(
-        "actividad_6_resultados.csv",
+        "nuevas_vulnerabilidades.csv",
         [
             "new_vulnerability_rate_lambda", "euler_value_at_final_time",
             "equilibrium_value", "step_count",
@@ -474,16 +440,23 @@ def run_activity_6() -> None:
     )
 
 
-def run_all_activities() -> None:
-    """Ejecuta todas las actividades computacionales de las secciones 5 a 10."""
-    run_activity_1()
-    run_activity_2()
-    run_activity_3()
-    run_activity_4()
-    run_activity_5()
-    run_activity_6()
-    print(f"Experiments completed. Results saved in: {OUTPUT_DIRECTORY}")
+def run_all_tasks() -> None:
+    tasks = [
+        ("Tarea 1: verificación de Euler", run_task_1),
+        ("Tarea 2: error numérico", run_task_2),
+        ("Tarea 3: Euler vs Euler mejorado", run_task_3),
+        ("Tarea 4: gestión de vulnerabilidades", run_task_4),
+        ("Tarea 5: modelo discreto", run_task_5),
+        ("Tarea 6: nuevas vulnerabilidades", run_task_6),
+    ]
+    total = len(tasks)
+
+    for index, (description, task) in enumerate(tasks, start=1):
+        print(f"[{index}/{total}] {description}", flush=True)
+        task()
+
+    print(f"Experiments completed. Results saved in: {OUTPUT_DIRECTORY}", flush=True)
 
 
 if __name__ == "__main__":
-    run_all_activities()
+    run_all_tasks()
