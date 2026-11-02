@@ -1,5 +1,6 @@
 from pathlib import Path
 import csv
+from textwrap import fill as wrap_text
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,6 +64,12 @@ def save_csv(file_name: str, headers: list[str], rows: list[tuple]) -> None:
         writer.writerows(rows)
 
 
+def set_graph_title(title: str, subtitle: str) -> None:
+    """Agrega un título descriptivo y un subtítulo con el modelo simulado."""
+    plt.suptitle(title, fontsize=12, fontweight="bold", y=0.99)
+    if subtitle:
+        plt.title(wrap_text(subtitle, width=105), fontsize=8.5, pad=9)
+
 def plot_reference_and_approximations(
     reference_function,
     simulation_results: list[tuple[str, list[float], list[float]]],
@@ -89,9 +96,44 @@ def plot_reference_and_approximations(
 
     plt.xlabel("Tiempo t")
     plt.ylabel(y_label)
-    plt.title(title)
+    # Los títulos de estas figuras separan el nombre del caso y su ecuación con " | ".
+    if " | " in title:
+        main_title, subtitle = title.split(" | ", 1)
+    else:
+        main_title, subtitle = title, ""
+    set_graph_title(main_title, subtitle)
     plt.legend()
     save_figure(file_name)
+
+# def plot_reference_and_approximations(
+#     reference_function,
+#     simulation_results: list[tuple[str, list[float], list[float]]],
+#     final_time: float,
+#     title: str,
+#     y_label: str,
+#     file_name: str,
+# ) -> None:
+#     """Grafica una referencia y varias aproximaciones numéricas."""
+#     reference_times = np.linspace(0, final_time, 500)
+#     reference_values = [reference_function(time) for time in reference_times]
+
+#     plt.figure(figsize=(8, 4.8))
+#     plt.plot(
+#         reference_times,
+#         reference_values,
+#         color="black",
+#         linewidth=2,
+#         label="Solución de referencia",
+#     )
+
+#     for label, times, values in simulation_results:
+#         plt.plot(times, values, marker="o", markersize=2.5, label=label)
+
+#     plt.xlabel("Tiempo t")
+#     plt.ylabel(y_label)
+#     plt.title(title)
+#     plt.legend()
+#     save_figure(file_name)
 
 
 def run_task_1() -> None:
@@ -115,7 +157,7 @@ def run_task_1() -> None:
         linear_growth_reference,
         linear_results,
         final_time,
-        "Caso 1: crecimiento lineal",
+        "Caso 1: crecimiento lineal | Ecuación: x'(t) = 1, x(0) = 0; solución exacta: x(t) = t",
         "x(t)",
         "crecimiento_lineal",
     )
@@ -142,7 +184,7 @@ def run_task_1() -> None:
         exponential_decay_reference,
         exponential_results,
         final_time,
-        "Caso 2: decrecimiento exponencial",
+        "Caso 2: decrecimiento exponencial | Ecuación: x'(t) = -x(t), x(0) = 1; solución exacta: x(t) = e^(-t)",
         "x(t)",
         "decrecimiento_exponencial",
     )
@@ -175,7 +217,7 @@ def run_task_2() -> None:
         plt.plot(times, errors, label=label)
     plt.xlabel("Tiempo t")
     plt.ylabel("Error absoluto")
-    plt.title("Error absoluto de Euler en función del tiempo")
+    set_graph_title("Error absoluto de Euler", "Ecuación: x'(t) = -x(t), x(0) = 1; solución exacta: x(t) = e^(-t)")
     plt.legend()
     save_figure("error_absoluto_vs_tiempo")
 
@@ -229,7 +271,7 @@ def run_task_3() -> None:
 
     plt.xlabel("Tiempo t")
     plt.ylabel("x(t)")
-    plt.title("Euler frente a Euler mejorado")
+    set_graph_title("Comparación entre Euler y Euler mejorado", "Ecuación: x'(t) = -x(t), x(0) = 1; solución exacta: x(t) = e^(-t); h = 1")
     plt.legend()
     save_figure("euler_vs_euler_mejorado")
 
@@ -272,8 +314,8 @@ def run_task_4() -> None:
         )
         plt.plot(times, values, marker="o", markersize=2.5,
                  label=f"Euler, organización {organization_name}")
-        plt.plot(reference_times, [reference(time) for time in reference_times],
-                 linestyle="--", label=f"Referencia, organización {organization_name}")
+        # plt.plot(reference_times, [reference(time) for time in reference_times],
+        #          linestyle="--", label=f"Referencia, organización {organization_name}")
 
         # Se calculan valores y errores en t=5, 10 y 15 para cada tamaño de paso.
         for step_size in step_sizes:
@@ -306,7 +348,7 @@ def run_task_4() -> None:
 
     plt.xlabel("Tiempo t (días)")
     plt.ylabel("Cantidad de equipos vulnerables V(t)")
-    plt.title("Remediación en las organizaciones A, B y C")
+    set_graph_title("Remediación de vulnerabilidades", "Modelo: V'(t) = -kV(t), V(0) = 1000; referencia: V(t) = 1000e^(-kt); A: k=0.1, B: k=0.3, C: k=0.7; h=1")
     plt.legend(fontsize=8)
     save_figure("remediacion_organizaciones")
 
@@ -379,7 +421,7 @@ def run_task_5() -> None:
     plt.axhline(0, linewidth=0.8)
     plt.xlabel("Iteración n")
     plt.ylabel("Equipos vulnerables V_n")
-    plt.title("Comportamiento del modelo discreto")
+    set_graph_title("Comportamiento del modelo discreto", "Recurrencia: V_(n+1) = (1-hk)V_n; V_0 = 1000, k = 0.3; se comparan distintos valores de hk")
     plt.legend()
     save_figure("modelo_discreto")
 
@@ -428,7 +470,7 @@ def run_task_6() -> None:
 
     plt.xlabel("Tiempo t")
     plt.ylabel("Equipos vulnerables V(t)")
-    plt.title("Aparición de nuevas vulnerabilidades")
+    set_graph_title("Aparición de nuevas vulnerabilidades", "Modelo: V'(t) = λ - kV(t), V(0) = 1000; k = 0.3; λ = 0, 50, 100 y 200")
     plt.legend(fontsize=8)
     save_figure("nuevas_vulnerabilidades")
 
@@ -544,10 +586,12 @@ def run_bonus() -> None:
         plt.plot(times, values, marker="o", markersize=3, label=f"{method_name}, h=0.5")
     plt.xlabel("Tiempo t")
     plt.ylabel("y(t)")
-    plt.title("Bonus - Comparación de métodos para el modelo logístico (y0=0.2)")
-    plt.legend()
+    set_graph_title("Bonus - Comparación de métodos", "Modelo logístico: y'(t) = y(t)(1-y(t)), y(0) = 0.2; h = 0.5")
+    # plt.title("Bonus - Comparación de métodos | Modelo logístico: y'(t) = y(t)(1-y(t)), y(0) = 0.2; h = 0.5")
+    # plt.legend()
+    plt.legend(fontsize=8)
     save_figure("bonus_logistic_method_comparison")
-
+    
     # Figura 2: efecto del tamaño de paso usando RK4.
     plt.figure(figsize=(8, 4.8))
     plt.plot(
@@ -562,7 +606,7 @@ def run_bonus() -> None:
         plt.plot(times, values, label=f"RK4, h={step_size:g}")
     plt.xlabel("Tiempo t")
     plt.ylabel("y(t)")
-    plt.title("Bonus - Influencia del tamaño de paso en RK4 (y0=0.2)")
+    set_graph_title("Bonus - Influencia del tamaño de paso en RK4 (y0=0.2)", "Modelo logístico: y'(t) = y(t)(1-y(t)), y(0) = 0.2; h = 0.5, 0.2, 0.1, 0.05 y 0.01")
     plt.legend(fontsize=8)
     save_figure("bonus_logistic_step_sizes")
 
@@ -576,7 +620,7 @@ def run_bonus() -> None:
         )
     plt.xlabel("Tamaño de paso h")
     plt.ylabel("Error absoluto máximo")
-    plt.title("Bonus - Error máximo según el tamaño de paso (y0=0.2)")
+    set_graph_title("Bonus - Error máximo según el tamaño de paso", "Modelo logístico: y'(t) = y(t)(1-y(t)), y(0) = 0.2; comparación de Euler, Heun y RK4")
     plt.legend()
     save_figure("bonus_logistic_error_vs_step")
 
@@ -589,7 +633,7 @@ def run_bonus() -> None:
         plt.plot(times, values, label=f"y0={initial_value:g}")
     plt.xlabel("Tiempo t")
     plt.ylabel("y(t)")
-    plt.title("Bonus - Modelo logístico para distintas condiciones iniciales (RK4, h=0.1)")
+    set_graph_title("Bonus - Modelo logístico para distintas condiciones iniciales (RK4, h=0.1)", "Modelo logístico: y'(t) = y(t)(1-y(t)); RK4, h = 0.1; y(0) = 0.1, 0.2, 0.5 y 0.9")
     plt.legend()
     save_figure("bonus_logistic_initial_values")
 
